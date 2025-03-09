@@ -1,0 +1,21 @@
+.App {
+  text-align: center;
+}
+
+body {
+  background-color: #f5f5f5;
+}
+
+.number-ball {
+  transition: all 0.3s ease;
+}
+
+.number-ball:hover {
+  transform: scale(1.1);
+}
+
+@media (max-width: 600px) {
+  .MuiTypography-h3 {
+    font-size: 2rem;
+  }
+}
