@@ -1,17 +1,16 @@
-import React from "react";
 import { Grid, Box, Typography } from "@mui/material";
-import "./RouletteTable.css";
 import NumbersTable from "./NumbersTable";
 
-// Define the red and black numbers in European roulette
+// Define the red and black numbers sets
 const redNumbers = new Set([
   1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
 ]);
+
 const blackNumbers = new Set([
   2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
 ]);
 
-const RouletteTable = ({ numbers }) => {
+const RouletteTable = ({ numbers, historyRange }) => {
   // Function to determine the color of a number
   const getNumberColor = (num) => {
     const number = parseInt(num, 10);
@@ -27,16 +26,26 @@ const RouletteTable = ({ numbers }) => {
     return { backgroundColor: color };
   };
 
+  // Calculate how many numbers to display in the recent numbers row
+  // Use a smaller number for display to avoid overcrowding
+  const displayCount = Math.min(historyRange, 500); // Display max 20 numbers to avoid overcrowding
   return (
     <Box sx={{ mb: 4 }}>
-      <Typography variant="h6" gutterBottom>
+      <Typography variant="h6" gutterBottom align="center">
         Recent Numbers
       </Typography>
 
-      {/* Display the last 10 numbers in a row */}
-      <Box sx={{ display: "flex", flexWrap: "wrap", mb: 3 }}>
+      {/* Display the recent numbers based on historyRange */}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          mb: 3,
+          justifyContent: "center",
+        }}
+      >
         {numbers
-          .slice(-10)
+          .slice(-displayCount)
           .reverse()
           .map((num, index) => (
             <Box
@@ -51,6 +60,7 @@ const RouletteTable = ({ numbers }) => {
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
+                color: "white", // Make text white for better visibility
               }}
             >
               {num}
@@ -63,6 +73,7 @@ const RouletteTable = ({ numbers }) => {
         numbers={numbers}
         redNumbers={redNumbers}
         blackNumbers={blackNumbers}
+        historyRange={historyRange}
       />
     </Box>
   );

@@ -1,7 +1,5 @@
 import React, { useState } from "react";
-import RouletteTable from "../components/RouletteTable";
 import { useRouletteData } from "../hooks/useRouletteData";
-import NumberInput from "../components/NumberInput";
 import {
   Container,
   Box,
@@ -11,8 +9,11 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import Message from "../components/Message";
 import ColorStreaks from "../components/ColorStreaks";
+import NumberRangeStreaks from "../components/NumberRangeStreaks";
+import NumberInput from "../components/NumberInput";
+import Message from "../components/Message";
+import RouletteTable from "../components/RouletteTable";
 
 function RouletteView() {
   const {
@@ -49,6 +50,9 @@ function RouletteView() {
           <ColorStreaks currentStreak={currentStreaks} />
         </Box>
 
+        <Box sx={{ mt: 4 }}>
+          <NumberRangeStreaks currentStreak={currentStreaks} />
+        </Box>
         {/* Add history range selector */}
         <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
           <FormControl variant="outlined" sx={{ minWidth: 120 }}>
