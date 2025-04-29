@@ -28,7 +28,7 @@ const RouletteTable = ({ numbers, historyRange, currentStreak }) => {
   };
 
   // Calculate how many numbers to display in the recent numbers column
-  const displayCount = Math.min(historyRange, 20); // Display max 20 numbers to avoid overcrowding
+  const displayCount = Math.min(historyRange, 50); // Display max 20 numbers to avoid overcrowding
 
   return (
     <Grid container spacing={2}>
@@ -87,90 +87,6 @@ const RouletteTable = ({ numbers, historyRange, currentStreak }) => {
                 ))}
             </Box>
           </Paper>
-        </Grid>
-
-        {/* Right column - Stats */}
-        <Grid item xs={12} md={4}>
-          <Grid container direction="column" spacing={2}>
-            {/* Color Streaks */}
-            <Grid item>
-              <ColorStreaks currentStreak={currentStreak} />
-            </Grid>
-
-            {/* Number Range Streaks */}
-            <Grid item>
-              <Paper elevation={3} sx={{ p: 2 }}>
-                <Typography variant="h6" gutterBottom align="center">
-                  Number Range Streaks
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={3}>
-                    <Box
-                      sx={{
-                        bgcolor: "#FFD700", // Gold/Yellow
-                        p: 2,
-                        textAlign: "center",
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle2">First (1-12)</Typography>
-                      <Typography variant="h4">
-                        {currentStreak?.first || 0}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Box
-                      sx={{
-                        bgcolor: "#87CEEB", // Sky Blue
-                        p: 2,
-                        textAlign: "center",
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle2">
-                        Second (13-24)
-                      </Typography>
-                      <Typography variant="h4">
-                        {currentStreak?.second || 0}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Box
-                      sx={{
-                        bgcolor: "#006400", // Dark Green
-                        p: 2,
-                        textAlign: "center",
-                        color: "white",
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle2">Third (25-36)</Typography>
-                      <Typography variant="h4">
-                        {currentStreak?.third || 0}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Box
-                      sx={{
-                        bgcolor: "#32CD32", // Lime Green
-                        p: 2,
-                        textAlign: "center",
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle2">Zero (0)</Typography>
-                      <Typography variant="h4">
-                        {currentStreak?.zero || 0}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-          </Grid>
         </Grid>
       </Grid>
     </Grid>
