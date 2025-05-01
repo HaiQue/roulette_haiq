@@ -1,0 +1,59 @@
+Regex to Find
+((?:\S+\s+){10})
+Replace With
+$1\n
+Replace All in VS Code.
+
+Full version:
+1. Open the Find and Replace Panel
+Press Ctrl + H (Windows/Linux) or Cmd + Option + F (macOS)
+
+Make sure the . (Use Regular Expression)* icon is activated (it should be highlighted).
+
+2. Use a Regex Pattern to Insert Line Breaks
+Assuming your numbers are separated by spaces, you can search for a pattern that captures 10 space-separated tokens, then replace them with the same 10 tokens followed by a newline.
+
+Regex to Find
+css
+Copy
+((?:\S+\s+){10})
+Explanation:
+
+\S+ means “one or more non-whitespace characters” (i.e., a ‘token’ or ‘number’).
+
+\s+ means “one or more whitespace characters” (the space or spaces after each number).
+
+(?: ... ){10} is a non-capturing group repeated exactly 10 times.
+
+We enclose that entire pattern in (( ... )) so we can capture it as group 1 to reuse in our replacement.
+
+Replace With
+bash
+Copy
+$1\n
+This means:
+
+$1 → reinsert the same 10 tokens found.
+
+\n → then insert a newline.
+
+3. Run the Replacement
+Click Replace All in VS Code.
+
+Every set of 10 space-separated values will be placed on its own line.
+
+4. Post-Replace Adjustments
+If you find extra spaces at the start or end of lines, you can run another simple Find/Replace to trim them.
+
+If your data has tabs or different spacing, you can adjust the regex slightly (e.g., use \s+ carefully, or convert tabs to spaces first).
+
+Example
+Before (all on one line):
+
+Copy
+10 20 30 40 50 60 70 80 90 100 110 120 130 140
+After running the replacement:
+
+Copy
+10 20 30 40 50 60 70 80 90 100
+110 120 130 140
