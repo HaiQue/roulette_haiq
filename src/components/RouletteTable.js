@@ -1,6 +1,4 @@
 import { Grid, Box, Typography, Paper } from "@mui/material";
-import NumbersTable from "./NumbersTable";
-import ColorStreaks from "./ColorStreaks";
 
 // Define the red and black numbers sets
 const redNumbers = new Set([
@@ -33,61 +31,48 @@ const RouletteTable = ({ numbers, historyRange, currentStreak }) => {
   return (
     <Grid container spacing={2}>
       {/* Main content area - Three columns layout */}
-      <Grid container item xs={12} spacing={2}>
-        {/* Left column - Numbers Table */}
-        <Grid item xs={12} md={5}>
-          <Paper elevation={3} sx={{ p: 2, height: "100%" }}>
-            <NumbersTable
-              numbers={numbers}
-              redNumbers={redNumbers}
-              blackNumbers={blackNumbers}
-              historyRange={historyRange}
-            />
-          </Paper>
-        </Grid>
 
-        {/* Middle column - Recent Numbers */}
-        <Grid item xs={12} md={3}>
-          <Paper elevation={3} sx={{ p: 2, height: "100%" }}>
-            <Typography variant="h6" gutterBottom align="center">
-              Recent Numbers
-            </Typography>
+      {/* Middle column - Recent Numbers */}
+      <Grid item xs={12} md={3}>
+        <Paper elevation={3} sx={{ p: 2, height: "100%" }}>
+          <Typography variant="h6" gutterBottom align="center">
+            Recent Numbers
+          </Typography>
 
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 1,
-                maxHeight: "60vh",
-                overflowY: "auto",
-              }}
-            >
-              {numbers
-                .slice(-displayCount)
-                .reverse()
-                .map((num, index) => (
-                  <Box
-                    key={index}
-                    className="roulette-number"
-                    sx={{
-                      ...getBackgroundColor(num),
-                      borderRadius: "50%",
-                      width: "40px",
-                      height: "40px",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      color: "white", // Make text white for better visibility
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {num}
-                  </Box>
-                ))}
-            </Box>
-          </Paper>
-        </Grid>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
+              maxHeight: "60vh",
+              overflowY: "auto",
+            }}
+          >
+            {numbers
+              .slice(-displayCount)
+              .reverse()
+              .map((num, index) => (
+                <Box
+                  key={index}
+                  className="roulette-number"
+                  sx={{
+                    ...getBackgroundColor(num),
+                    borderRadius: "50%",
+                    width: "40px",
+                    height: "40px",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    color: "white", // Make text white for better visibility
+                    fontWeight: "bold",
+                  }}
+                >
+                  {num}
+                </Box>
+              ))}
+          </Box>
+        </Paper>
       </Grid>
     </Grid>
   );
