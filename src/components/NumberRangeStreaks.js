@@ -16,6 +16,9 @@ const StreakBox = styled(Paper)(({ theme, color }) => ({
 const NumberRangeStreaks = ({ currentStreak }) => {
   return (
     <Box sx={{ flexGrow: 1, mb: 3, textAlign: "center" }}>
+      <Typography variant="h6" gutterBottom align="center">
+        Number Range Streaks
+      </Typography>
       <Grid
         container
         spacing={2}
@@ -23,29 +26,33 @@ const NumberRangeStreaks = ({ currentStreak }) => {
         sx={{ maxWidth: "1000px", margin: "0 auto" }}
       >
         <Grid item xs={6} sm={3} md={2.5}>
-          <StreakBox color="#2471a3">
+          <StreakBox color="#FFD700">
             {" "}
+            {/* Gold color for first dozen */}
             <Typography variant="subtitle1">First (1-12)</Typography>
             <Typography variant="h4">{currentStreak.first}</Typography>
           </StreakBox>
         </Grid>
         <Grid item xs={6} sm={3} md={2.5}>
-          <StreakBox color="#2471a3">
+          <StreakBox color="#87CEEB">
             {" "}
+            {/* Sky Blue for second dozen */}
             <Typography variant="subtitle1">Second (13-24)</Typography>
             <Typography variant="h4">{currentStreak.second}</Typography>
           </StreakBox>
         </Grid>
         <Grid item xs={6} sm={3} md={2.5}>
-          <StreakBox color="#2471a3">
+          <StreakBox color="#006400">
             {" "}
+            {/* Dark Green for third dozen */}
             <Typography variant="subtitle1">Third (25-36)</Typography>
             <Typography variant="h4">{currentStreak.third}</Typography>
           </StreakBox>
         </Grid>
         <Grid item xs={6} sm={3} md={2.5}>
-          <StreakBox color="#2471a3">
+          <StreakBox color="#32CD32">
             {" "}
+            {/* Lime Green for zero */}
             <Typography variant="subtitle1">Zero (0)</Typography>
             <Typography variant="h4">{currentStreak.zero}</Typography>
           </StreakBox>

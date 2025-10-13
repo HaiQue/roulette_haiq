@@ -1,14 +1,15 @@
 import { calculateCurrentStreak } from "../utils/utils";
-import axios from "axios";
 import { useState, useEffect } from "react";
+import axios from "axios";
 
-// Define the red and black numbers in European roulette
-const redNumbers = new Set([
+// Define red and black numbers for roulette
+const redNumbers = [
   1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-]);
-const blackNumbers = new Set([
+];
+const blackNumbers = [
   2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
-]);
+];
+
 export const useRouletteData = () => {
   const [number, setNumber] = useState("");
   const [numbers, setNumbers] = useState([]);
@@ -32,15 +33,17 @@ export const useRouletteData = () => {
   useEffect(() => {
     if (numbers.length > 0) {
       const streaks = calculateCurrentStreak(numbers, redNumbers, blackNumbers);
+      console.log("Calculated streaks:", streaks);
       setCurrentStreaks(streaks);
     }
   }, [numbers]);
+
   const fetchData = async () => {
     try {
       const response = await axios.get("http://localhost:5000/data");
       if (response.data) {
         const fetchedNumbers = response.data.split(",").filter((n) => n !== "");
-        setNumbers(fetchedNumbers);
+        setNumbers(fetchedNumbers.map((n) => parseInt(n, 10)));
       }
     } catch (error) {
       console.error("Error fetching data:", error);

@@ -9,6 +9,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
+import ColorStreaks from "../components/ColorStreaks";
 import NumberRangeStreaks from "../components/NumberRangeStreaks";
 import NumberInput from "../components/NumberInput";
 import Message from "../components/Message";
@@ -30,8 +31,12 @@ function RouletteView() {
   const [historyRange, setHistoryRange] = useState(100);
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ my: 4 }}>
+    <Container maxWidth={false} disableGutters sx={{ px: 0 }}>
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          Roulette Tracker
+        </Typography>
+
         <NumberInput
           value={number}
           onChange={setNumber}
@@ -40,31 +45,45 @@ function RouletteView() {
         />
 
         {message && <Message message={message} type={messageType} />}
-        <NumberRangeStreaks currentStreak={currentStreaks} />
-
-        {/* Add history range selector */}
-        {/* <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}> */}
-        <FormControl variant="outlined" sx={{ minWidth: 120 }}>
-          <InputLabel id="history-range-label">History Range</InputLabel>
-          <Select
-            labelId="history-range-label"
-            id="history-range"
-            value={historyRange}
-            onChange={(e) => setHistoryRange(e.target.value)}
-            label="History Range"
-          >
-            <MenuItem value={10}>Last 10</MenuItem>
-            <MenuItem value={20}>Last 20</MenuItem>
-            <MenuItem value={50}>Last 50</MenuItem>
-            <MenuItem value={100}>Last 100</MenuItem>
-            <MenuItem value={200}>Last 200</MenuItem>
-            <MenuItem value={500}>Last 500</MenuItem>
-          </Select>
-        </FormControl>
-        {/* </Box> */}
 
         <Box sx={{ mt: 4 }}>
-          <RouletteTable numbers={numbers} historyRange={historyRange} />
+          {/* <ColorStreaks currentStreak={currentStreaks} /> */}
+        </Box>
+
+        <Box sx={{ mt: 4 }}>
+          {/* <NumberRangeStreaks currentStreak={currentStreaks} /> */}
+        </Box>
+        {/* Add history range selector */}
+        <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
+          <FormControl variant="outlined" sx={{ minWidth: 120 }}>
+            <InputLabel id="history-range-label">History Range</InputLabel>
+            <Select
+              labelId="history-range-label"
+              id="history-range"
+              value={historyRange}
+              onChange={(e) => setHistoryRange(e.target.value)}
+              label="History Range"
+            >
+              <MenuItem value={10}>Last 10</MenuItem>
+              <MenuItem value={20}>Last 20</MenuItem>
+              <MenuItem value={50}>Last 50</MenuItem>
+              <MenuItem value={100}>Last 100</MenuItem>
+              <MenuItem value={300}>Last 300</MenuItem>
+              <MenuItem value={500}>Last 500</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Box
+          sx={{
+            width: "100vw",
+            ml: "calc(50% - 50vw)",
+            mr: "calc(50% - 50vw)",
+          }}
+        >
+          <Box sx={{ mt: 4 }}>
+            <RouletteTable numbers={numbers} historyRange={historyRange} />
+          </Box>
         </Box>
       </Box>
     </Container>
