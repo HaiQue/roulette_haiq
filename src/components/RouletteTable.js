@@ -1,4 +1,3 @@
-// RouletteTable.js
 import { useMemo, useState, useEffect } from "react";
 import {
   Grid,
@@ -43,7 +42,40 @@ const StatChip = ({ label, value, color = "default" }) => (
   />
 );
 
-// ✅ add these props with defaults
+const fmtPct = (num, den) => (den ? ((num / den) * 100).toFixed(1) : "—");
+
+const buildStreakTransitions = (outcomes) => {
+  if (outcomes.length < 2) return { win: {}, loss: {} };
+  const lenEnd = new Array(outcomes.length).fill(1);
+  for (let i = 1; i < outcomes.length; i++) {
+    lenEnd[i] = outcomes[i] === outcomes[i - 1] ? lenEnd[i - 1] + 1 : 1;
+  }
+  const agg = { win: new Map(), loss: new Map() };
+  const bump = (type, len, nextIsWin) => {
+    const m = agg[type];
+    if (!m.has(len)) m.set(len, { nextWin: 0, nextLoss: 0, total: 0 });
+    const row = m.get(len);
+    if (nextIsWin) row.nextWin += 1;
+    else row.nextLoss += 1;
+    row.total += 1;
+  };
+  for (let i = 0; i < outcomes.length - 1; i++) {
+    const cur = outcomes[i];
+    const next = outcomes[i + 1];
+    const len = lenEnd[i];
+    if (cur) bump("win", len, next === true);
+    else bump("loss", len, next === true);
+  }
+  const toObj = (m) => {
+    const obj = {};
+    [...m.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .forEach(([k, v]) => (obj[k] = v));
+    return obj;
+  };
+  return { win: toObj(agg.win), loss: toObj(agg.loss) };
+};
+
 const RouletteTable = ({
   numbers,
   historyRange,
@@ -55,23 +87,21 @@ const RouletteTable = ({
   const [target, setTarget] = useState(18);
   const [followMode, setFollowMode] = useState("after");
   const [betTypeKey, setBetTypeKey] = useState("Core28");
-
-  // local history range control
   const [localRange, setLocalRange] = useState(historyRange ?? 100);
+
   useEffect(() => {
     if (typeof historyRange === "number" && historyRange !== localRange) {
       setLocalRange(historyRange);
     }
-  }, [historyRange]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [historyRange, localRange]);
 
-  // auto-select newest entered number
   useEffect(() => {
     if (!numbers?.length) return;
     const last = Number(numbers[numbers.length - 1]);
     if (Number.isFinite(last) && last >= 0 && last <= 36 && last !== target) {
       setTarget(last);
     }
-  }, [numbers]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [numbers, target]);
 
   const getNumberColor = (n) => {
     const x = parseInt(n, 10);
@@ -81,7 +111,6 @@ const RouletteTable = ({
     return "#2e7d32";
   };
 
-  // use localRange for slicing
   const displayCount = Math.min(localRange, numbers.length);
   const slice = numbers.slice(-displayCount);
 
@@ -96,19 +125,108 @@ const RouletteTable = ({
     return out;
   }, [slice, target, followMode]);
 
+  const bet = useMemo(() => betTypes[betTypeKey], [betTypeKey]);
+
+  const overall = useMemo(() => {
+    const total = slice.length;
+    const losses = slice.filter((n) => bet.lose.has(parseInt(n, 10))).length;
+    const wins = total - losses;
+    const pct = total ? ((wins / total) * 100).toFixed(1) : "—";
+    return { total, wins, losses, pct };
+  }, [slice, bet]);
+
   const freq = useMemo(() => {
     const m = new Map();
     for (const v of followers) m.set(v, (m.get(v) || 0) + 1);
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [followers]);
 
-  const bet = betTypes[betTypeKey];
-  const loses = [...bet.lose].sort((a, b) => a - b);
+  const loses = useMemo(() => [...bet.lose].sort((a, b) => a - b), [bet]);
   const winsCount = followers.filter((n) => !bet.lose.has(n)).length;
   const lossesCount = followers.length - winsCount;
   const winPct = followers.length
     ? ((winsCount / followers.length) * 100).toFixed(1)
     : "—";
+
+  const outcomes = useMemo(
+    () => slice.map((n) => !bet.lose.has(parseInt(n, 10))),
+    [slice, bet]
+  );
+  const transitions = useMemo(
+    () => buildStreakTransitions(outcomes),
+    [outcomes]
+  );
+
+  const renderTransTable = (title, rowsObj, flipColumnFirst = false) => {
+    const lengths = Object.keys(rowsObj)
+      .map((k) => parseInt(k, 10))
+      .sort((a, b) => a - b);
+    return (
+      <Card elevation={2} sx={{ mt: 2 }}>
+        <CardHeader
+          title={title}
+          sx={{ py: 1.25, borderBottom: "1px solid", borderColor: "divider" }}
+        />
+        <CardContent sx={{ pt: 1 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Streak</TableCell>
+                {flipColumnFirst ? (
+                  <>
+                    <TableCell align="right">Next is Loss %</TableCell>
+                    <TableCell align="right">Next is Win %</TableCell>
+                    <TableCell align="right">Switch %</TableCell>
+                  </>
+                ) : (
+                  <>
+                    <TableCell align="right">Next is Win %</TableCell>
+                    <TableCell align="right">Next is Loss %</TableCell>
+                    <TableCell align="right">Switch %</TableCell>
+                  </>
+                )}
+                <TableCell align="right">Samples</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {lengths.map((len) => {
+                const { nextWin, nextLoss, total } = rowsObj[len];
+                const winp = fmtPct(nextWin, total);
+                const lossp = fmtPct(nextLoss, total);
+                const switchp = flipColumnFirst ? winp : lossp;
+                return (
+                  <TableRow key={len}>
+                    <TableCell>{len}</TableCell>
+                    {flipColumnFirst ? (
+                      <>
+                        <TableCell align="right">{lossp}</TableCell>
+                        <TableCell align="right">{winp}</TableCell>
+                        <TableCell align="right">{switchp}</TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell align="right">{winp}</TableCell>
+                        <TableCell align="right">{lossp}</TableCell>
+                        <TableCell align="right">{switchp}</TableCell>
+                      </>
+                    )}
+                    <TableCell align="right">{total}</TableCell>
+                  </TableRow>
+                );
+              })}
+              {lengths.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5}>
+                    Not enough data in this range.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <Grid container spacing={2} sx={{ width: "100%", mx: 0 }}>
@@ -122,7 +240,6 @@ const RouletteTable = ({
               flexWrap: "wrap",
             }}
           >
-            {/* These are optional; they only do something if parent passes handlers */}
             <TextField
               label="Enter number (0–36)"
               size="small"
@@ -150,22 +267,29 @@ const RouletteTable = ({
             </Button>
 
             <Box sx={{ flex: 1 }} />
-            <TextField
-              label="History Range"
-              size="small"
-              value={localRange}
-              select
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setLocalRange(v);
-                onHistoryRangeChange?.(v);
-              }}
-              sx={{ width: 140 }}
-            >
-              {[100, 200, 300, 400, 500].map((v) => (
-                <MenuItem key={v} value={v}>{`Last ${v}`}</MenuItem>
-              ))}
-            </TextField>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <TextField
+                label="History Range"
+                size="small"
+                value={localRange}
+                select
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setLocalRange(v);
+                  onHistoryRangeChange?.(v);
+                }}
+                sx={{ width: 140 }}
+              >
+                {[100, 200, 300, 400, 500].map((v) => (
+                  <MenuItem key={v} value={v}>{`Last ${v}`}</MenuItem>
+                ))}
+              </TextField>
+              <StatChip
+                label="Overall Win %"
+                value={overall.pct}
+                color="primary"
+              />
+            </Stack>
           </Box>
         </Card>
       </Grid>
@@ -280,16 +404,14 @@ const RouletteTable = ({
               <Typography variant="body2" sx={{ mr: 0.5 }}>
                 Lose on
               </Typography>
-              {[...bet.lose]
-                .sort((a, b) => a - b)
-                .map((n) => (
-                  <Chip
-                    key={n}
-                    label={n}
-                    size="small"
-                    sx={{ bgcolor: getNumberColor(n), color: "white" }}
-                  />
-                ))}
+              {loses.map((n) => (
+                <Chip
+                  key={n}
+                  label={n}
+                  size="small"
+                  sx={{ bgcolor: getNumberColor(n), color: "white" }}
+                />
+              ))}
             </Stack>
 
             <NumbersGrid
@@ -337,6 +459,17 @@ const RouletteTable = ({
                 )}
               </TableBody>
             </Table>
+
+            {renderTransTable(
+              "Next outcome after a WIN streak",
+              transitions.win,
+              true
+            )}
+            {renderTransTable(
+              "Next outcome after a LOSS streak",
+              transitions.loss,
+              false
+            )}
           </CardContent>
         </Card>
       </Grid>
