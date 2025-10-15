@@ -3,8 +3,16 @@ import { Box, Slider, Typography, FormControl, FormLabel } from "@mui/material";
 
 const marks = [
   {
+    value: 50,
+    label: "50",
+  },
+  {
     value: 100,
     label: "100",
+  },
+  {
+    value: 200,
+    label: "200",
   },
   {
     value: 300,
@@ -13,6 +21,10 @@ const marks = [
   {
     value: 500,
     label: "500",
+  },
+  {
+    value: 10000,
+    label: "10000",
   },
 ];
 

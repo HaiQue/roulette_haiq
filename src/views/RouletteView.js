@@ -54,7 +54,7 @@ function RouletteView() {
           {/* <NumberRangeStreaks currentStreak={currentStreaks} /> */}
         </Box>
         {/* Add history range selector */}
-        <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
+        {/* <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
           <FormControl variant="outlined" sx={{ minWidth: 120 }}>
             <InputLabel id="history-range-label">History Range</InputLabel>
             <Select
@@ -72,7 +72,7 @@ function RouletteView() {
               <MenuItem value={500}>Last 500</MenuItem>
             </Select>
           </FormControl>
-        </Box>
+        </Box> */}
 
         <Box
           sx={{
