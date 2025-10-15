@@ -1,105 +1,75 @@
-import { calculateCurrentStreak } from "../utils/utils";
-import { useState, useEffect } from "react";
+// src/hooks/useRouletteData.js
+import { useEffect, useState } from "react";
 import axios from "axios";
 
-// Define red and black numbers for roulette
-const redNumbers = [
-  1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
-];
-const blackNumbers = [
-  2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
-];
+const API = "http://localhost:5000";
 
-export const useRouletteData = () => {
-  const [number, setNumber] = useState("");
+// Parse "csv or spaced" text -> number[]
+function parseList(text) {
+  return String(text || "")
+    .split(/[,\s]+/)
+    .map((v) => parseInt(v, 10))
+    .filter((n) => Number.isFinite(n) && n >= 0 && n <= 36);
+}
+
+export default function useRouletteData() {
   const [numbers, setNumbers] = useState([]);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState("success");
-  const [currentStreaks, setCurrentStreaks] = useState({
-    red: 0,
-    black: 0,
-    first: 0,
-    second: 0,
-    third: 0,
-    zero: 0,
-  });
+  const [pendingValue, setPendingValue] = useState(""); // the input box text
 
-  // Fetch data on component mount
+  // Load once on mount
   useEffect(() => {
-    fetchData();
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update streaks whenever numbers change
-  useEffect(() => {
-    if (numbers.length > 0) {
-      const streaks = calculateCurrentStreak(numbers, redNumbers, blackNumbers);
-      console.log("Calculated streaks:", streaks);
-      setCurrentStreaks(streaks);
-    }
-  }, [numbers]);
-
-  const fetchData = async () => {
+  // --- API ---
+  const reload = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/data");
-      if (response.data) {
-        const fetchedNumbers = response.data.split(",").filter((n) => n !== "");
-        setNumbers(fetchedNumbers.map((n) => parseInt(n, 10)));
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setMessage("Error fetching data. Please try again.");
-      setMessageType("error");
+      const res = await axios.get(`${API}/data`, { responseType: "text" });
+      setNumbers(parseList(res.data));
+    } catch (err) {
+      console.error("GET /data failed:", err);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!number) {
-      setMessage("Please enter a number.");
-      setMessageType("error");
-      return;
-    }
+  // Submit number (uses pendingValue by default)
+  const submitNumber = async (value) => {
+    const raw = value ?? pendingValue;
+    const num = parseInt(raw, 10);
+    if (!Number.isFinite(num) || num < 0 || num > 36) return;
 
-    const num = parseInt(number, 10);
-    if (isNaN(num) || num < 0 || num > 36) {
-      setMessage("Please enter a valid number between 0 and 36.");
-      setMessageType("error");
-      return;
-    }
-
+    // optimistic update
+    setNumbers((prev) => [...prev, num]);
     try {
-      await axios.post("http://localhost:5000/save-number", { number: num });
-      setMessage("Number saved successfully!");
-      setMessageType("success");
-      setNumber("");
-      fetchData(); // Refresh data
-    } catch (error) {
-      console.error("Error saving number:", error);
-      setMessage("Error saving number. Please try again.");
-      setMessageType("error");
+      await axios.post(`${API}/save-number`, { number: num });
+      setPendingValue(""); // clear input after success
+    } catch (err) {
+      console.error("POST /save-number failed:", err);
+      // roll back if needed by reloading truth
+      reload();
     }
   };
 
-  const handleUndo = async () => {
+  // Undo last
+  const undo = async () => {
+    if (!numbers.length) return;
+
+    // optimistic update
+    setNumbers((prev) => prev.slice(0, -1));
     try {
-      await axios.delete("http://localhost:5000/undo");
-      setMessage("Last number removed successfully!");
-      setMessageType("success");
-      fetchData(); // Refresh data
-    } catch (error) {
-      console.error("Error undoing last number:", error);
-      setMessage("Error undoing last number. Please try again.");
-      setMessageType("error");
+      await axios.delete(`${API}/undo`);
+    } catch (err) {
+      console.error("DELETE /undo failed:", err);
+      reload();
     }
   };
 
   return {
-    number,
-    setNumber,
-    message,
-    messageType,
-    currentStreaks,
     numbers,
-    handleSubmit,
-    handleUndo,
+    pendingValue,
+    setPendingValue,
+    submitNumber,
+    undo,
+    reload,
   };
-};
+}

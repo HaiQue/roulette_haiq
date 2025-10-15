@@ -1,10 +1,11 @@
+// src/components/NumbersGrid.js
 import { Box } from "@mui/material";
 
 const NumbersGrid = ({
   numbers,
   getNumberColor,
   columns = 10,
-  maxHeight = "52vh",
+  maxHeight = "60vh",
 }) => (
   <Box
     sx={{
@@ -25,15 +26,14 @@ const NumbersGrid = ({
           backgroundColor: getNumberColor(n),
           width: 44,
           height: 36,
-          borderRadius: 1.2,
+          borderRadius: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           color: "white",
           fontWeight: 700,
           fontSize: 14,
-          boxShadow: "0 1px 0 rgba(0,0,0,0.2)",
-          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: 1,
         }}
       >
         {n}
