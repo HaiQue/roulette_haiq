@@ -1,5 +1,5 @@
 // src/components/RouletteTable/index.js
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Grid,
   Box,
@@ -7,6 +7,10 @@ import {
   Card,
   CardHeader,
   CardContent,
+  TextField,
+  MenuItem,
+  ToggleButtonGroup,
+  ToggleButton,
   Chip,
   Stack,
   Divider,
@@ -15,16 +19,16 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  useMediaQuery,
-  useTheme,
+  Button,
 } from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import SwapVertIcon from "@mui/icons-material/SwapVert";
 
-import TopBar from "./TopBar";
-import RecentNumbersCard from "./RecentNumbersCard";
+// IMPORTANT: path assumes NumbersGrid is at src/components/NumbersGrid.js
+import NumbersGrid from "../NumbersGrid";
 
-/* ----------------------------- helpers / config ---------------------------- */
-
-// roulette colors
+// ---------------- colors / bet definitions ----------------
 const redNumbers = new Set([
   1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
 ]);
@@ -32,12 +36,9 @@ const blackNumbers = new Set([
   2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
 ]);
 
-// one bet type for now
 const betTypes = {
   Core28: { lose: new Set([0, 3, 6, 7, 10, 25, 28, 33, 36]) },
 };
-
-const fmtPct = (num, den) => (den ? ((num / den) * 100).toFixed(1) : "—");
 
 const getNumberColor = (n) => {
   const x = parseInt(n, 10);
@@ -47,11 +48,21 @@ const getNumberColor = (n) => {
   return "#2e7d32";
 };
 
-// build next-outcome (win/loss) transitions per streak length
+const StatChip = ({ label, value, color = "default" }) => (
+  <Chip
+    label={`${label}: ${value}`}
+    size="small"
+    color={color}
+    sx={{ fontWeight: 600 }}
+  />
+);
+
+const fmtPct = (num, den) => (den ? ((num / den) * 100).toFixed(1) : "—");
+
+// ------------ helpers for streak tables ------------
 const buildStreakTransitions = (outcomes) => {
   if (outcomes.length < 2) return { win: {}, loss: {} };
 
-  // streak length at each index (ending at i)
   const lenEnd = new Array(outcomes.length).fill(1);
   for (let i = 1; i < outcomes.length; i++) {
     lenEnd[i] = outcomes[i] === outcomes[i - 1] ? lenEnd[i - 1] + 1 : 1;
@@ -97,32 +108,33 @@ const currentStreak = (outcomes) => {
   return { type: last ? "win" : "loss", len };
 };
 
-/* --------------------------------- component -------------------------------- */
+// ============================================================
 
 export default function RouletteTable({
   numbers = [],
   historyRange = 100,
   onHistoryRangeChange,
   pendingValue = "",
-  onChangePending, // optional: to make the input editable
-  onSubmit, // (value) => void
+  onChangePending,
+  onSubmit,
   onUndo,
 }) {
-  // responsive density tweaks
-  const theme = useTheme();
-  const dense = useMediaQuery(theme.breakpoints.down("md"));
-
   const [target, setTarget] = useState(18);
-  const [followMode, setFollowMode] = useState("after"); // "after" | "before"
+  const [followMode, setFollowMode] = useState("after");
   const [betTypeKey, setBetTypeKey] = useState("Core28");
   const [localRange, setLocalRange] = useState(historyRange ?? 100);
 
-  // keep internal range synced when parent changes the prop
+  // quick filter toggles
+  const [includeZero, setIncludeZero] = useState(true);
+  const [includeRed, setIncludeRed] = useState(true);
+  const [includeBlack, setIncludeBlack] = useState(true);
+
+  // reflect parent range
   useEffect(() => {
     if (typeof historyRange === "number") setLocalRange(historyRange);
   }, [historyRange]);
 
-  // auto-target the newest entered number
+  // auto-target newest entered number
   useEffect(() => {
     if (!numbers.length) return;
     const last = Number(numbers[numbers.length - 1]);
@@ -131,14 +143,13 @@ export default function RouletteTable({
     }
   }, [numbers, target]);
 
-  // Slice by range
+  // slice by range
   const displayCount = Math.min(localRange, numbers.length);
   const slice = numbers.slice(-displayCount);
 
-  // Current bet
   const bet = useMemo(() => betTypes[betTypeKey], [betTypeKey]);
 
-  // Overall win/loss in the slice (independent of target/follow)
+  // overall win/loss (whole slice)
   const overall = useMemo(() => {
     const total = slice.length;
     const losses = slice.filter((n) => bet.lose.has(parseInt(n, 10))).length;
@@ -147,7 +158,7 @@ export default function RouletteTable({
     return { total, wins, losses, pct };
   }, [slice, bet]);
 
-  // Followers of selected target number
+  // followers of target in-view (older → newer)
   const followers = useMemo(() => {
     const out = [];
     for (let i = 0; i < slice.length; i++) {
@@ -159,22 +170,38 @@ export default function RouletteTable({
     return out;
   }, [slice, target, followMode]);
 
-  // frequency of followers
+  // most-recent → older
+  const followersRecentFirst = useMemo(
+    () => [...followers].reverse(),
+    [followers]
+  );
+
+  // apply filters
+  const followersFiltered = useMemo(() => {
+    return followersRecentFirst.filter((n) => {
+      if (n === 0) return includeZero;
+      if (redNumbers.has(n)) return includeRed;
+      if (blackNumbers.has(n)) return includeBlack;
+      return true;
+    });
+  }, [followersRecentFirst, includeZero, includeRed, includeBlack]);
+
+  // frequency table from filtered followers
   const freq = useMemo(() => {
     const m = new Map();
-    for (const v of followers) m.set(v, (m.get(v) || 0) + 1);
+    for (const v of followersFiltered) m.set(v, (m.get(v) || 0) + 1);
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
-  }, [followers]);
+  }, [followersFiltered]);
 
-  // lose set display & win% on followers
   const loses = useMemo(() => [...bet.lose].sort((a, b) => a - b), [bet]);
-  const winsCount = followers.filter((n) => !bet.lose.has(n)).length;
-  const lossesCount = followers.length - winsCount;
-  const winPct = followers.length
-    ? ((winsCount / followers.length) * 100).toFixed(1)
+
+  const winsCount = followersFiltered.filter((n) => !bet.lose.has(n)).length;
+  const lossesCount = followersFiltered.length - winsCount;
+  const winPct = followersFiltered.length
+    ? ((winsCount / followersFiltered.length) * 100).toFixed(1)
     : "—";
 
-  // Streak transitions (for the whole slice, based on current bet)
+  // slice outcomes for streak tables
   const outcomes = useMemo(
     () => slice.map((n) => !bet.lose.has(parseInt(n, 10))),
     [slice, bet]
@@ -183,20 +210,52 @@ export default function RouletteTable({
     () => buildStreakTransitions(outcomes),
     [outcomes]
   );
-
-  // Current streak + mini prediction from transitions
   const cur = useMemo(() => currentStreak(outcomes), [outcomes]);
   const prediction = useMemo(() => {
     if (!cur.type || !transitions[cur.type]?.[cur.len]?.total) return null;
     const r = transitions[cur.type][cur.len];
     if (r.nextWin === r.nextLoss)
-      return { pick: "win", pct: fmtPct(r.nextWin, r.total) }; // tie -> win
+      return { pick: "win", pct: fmtPct(r.nextWin, r.total) };
     const pick = r.nextWin > r.nextLoss ? "win" : "loss";
     const pct = fmtPct(Math.max(r.nextWin, r.nextLoss), r.total);
     return { pick, pct };
   }, [cur, transitions]);
 
-  // Render streak table with optional highlighting
+  // next 1–3 after last target
+  const nextAfterLastTarget = useMemo(() => {
+    let idx = -1;
+    for (let i = slice.length - 1; i >= 0; i--) {
+      if (parseInt(slice[i], 10) === parseInt(target, 10)) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx === -1) return [];
+    const out = [];
+    for (let k = 1; k <= 3; k++) {
+      const j = followMode === "after" ? idx + k : idx - k;
+      if (j >= 0 && j < slice.length) out.push(parseInt(slice[j], 10));
+    }
+    return out;
+  }, [slice, target, followMode]);
+
+  // groups for run markers
+  const followerGroups = useMemo(() => {
+    const groups = [];
+    let i = 0;
+    while (i < followersFiltered.length) {
+      const v = followersFiltered[i];
+      let j = i + 1;
+      while (j < followersFiltered.length && followersFiltered[j] === v) j++;
+      groups.push({ value: v, count: j - i });
+      i = j;
+    }
+    return groups;
+  }, [followersFiltered]);
+
+  const isValid = String(pendingValue ?? "").match(/^([0-9]|[12]\d|3[0-6])$/);
+
+  // helper to render a streak table (with optional row/cell highlight)
   const renderTransTable = (
     title,
     rowsObj,
@@ -204,6 +263,7 @@ export default function RouletteTable({
     highlightLen = null,
     highlightPick = null // 'win' | 'loss'
   ) => {
+    const fmtPct = (num, den) => (den ? ((num / den) * 100).toFixed(1) : "—");
     const lengths = Object.keys(rowsObj)
       .map((k) => parseInt(k, 10))
       .sort((a, b) => a - b);
@@ -316,47 +376,148 @@ export default function RouletteTable({
     <Grid container spacing={2} sx={{ width: "100%", mx: 0 }}>
       {/* TOP BAR */}
       <Grid item xs={12}>
-        <TopBar
-          pendingValue={pendingValue}
-          onChangePending={onChangePending}
-          onSubmit={onSubmit}
-          onUndo={onUndo}
-          localRange={localRange}
-          setLocalRange={setLocalRange}
-          onHistoryRangeChange={onHistoryRangeChange}
-          betTypeKey={betTypeKey}
-          setBetTypeKey={setBetTypeKey}
-          overallPct={overall.pct}
-          dense={dense}
-        />
+        <Card elevation={2} sx={{ p: 1.5 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <TextField
+              label="Enter number (0–36)"
+              size="small"
+              value={pendingValue ?? ""}
+              onChange={(e) => onChangePending?.(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && isValid && onSubmit) {
+                  e.preventDefault();
+                  onSubmit();
+                }
+              }}
+              sx={{ width: 220 }}
+            />
+            <Button
+              variant="contained"
+              size="small"
+              onClick={onSubmit}
+              disabled={!onSubmit || !isValid}
+            >
+              Submit
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              size="small"
+              onClick={onUndo}
+              disabled={!onUndo}
+            >
+              Undo
+            </Button>
+
+            <Box sx={{ ml: "auto", display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <TextField
+                label="History Range"
+                size="small"
+                value={localRange}
+                select
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setLocalRange(v);
+                  onHistoryRangeChange?.(v);
+                }}
+                sx={{ width: 140 }}
+              >
+                {[50, 100, 200, 300, 400, 500, 10000].map((v) => (
+                  <MenuItem key={v} value={v}>{`Last ${v}`}</MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                label="Bet Type"
+                size="small"
+                value={betTypeKey}
+                onChange={(e) => setBetTypeKey(e.target.value)}
+                select
+                sx={{ width: 140 }}
+              >
+                {Object.keys(betTypes).map((k) => (
+                  <MenuItem key={k} value={k}>
+                    {k}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <StatChip
+                label="Overall Win %"
+                value={overall.pct}
+                color="primary"
+              />
+            </Box>
+          </Box>
+        </Card>
       </Grid>
 
-      {/* LEFT: Recent numbers (slim, auto-fit grid) */}
-      <Grid item xs={12} md={3} lg={3}>
-        <RecentNumbersCard
-          slice={slice}
-          target={target}
-          setTarget={setTarget}
-          followMode={followMode}
-          setFollowMode={setFollowMode}
-          getNumberColor={getNumberColor}
-          dense={dense}
-        />
+      {/* LEFT: recent numbers */}
+      <Grid item xs={12} md={3}>
+        <Card elevation={2}>
+          <CardHeader
+            title="Recent Numbers"
+            action={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+                <TextField
+                  label="Number"
+                  size="small"
+                  value={target}
+                  onChange={(e) => setTarget(parseInt(e.target.value, 10))}
+                  select
+                  sx={{ width: 110 }}
+                >
+                  {Array.from({ length: 37 }, (_, i) => (
+                    <MenuItem key={i} value={i}>
+                      {i}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <ToggleButtonGroup
+                  size="small"
+                  value={followMode}
+                  exclusive
+                  onChange={(_, v) => v && setFollowMode(v)}
+                >
+                  <ToggleButton value="before">Prev</ToggleButton>
+                  <ToggleButton value="after">Next</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            }
+            sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+              bgcolor: "background.paper",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              py: 1.25,
+            }}
+          />
+          <CardContent sx={{ pt: 2 }}>
+            <NumbersGrid
+              numbers={slice}
+              getNumberColor={getNumberColor}
+              columns={10}
+              maxHeight="40vh"
+            />
+          </CardContent>
+        </Card>
       </Grid>
 
-      {/* RIGHT: followers + stats + streak tables */}
-      <Grid item xs={12} md={9} lg={9}>
+      {/* RIGHT SIDE */}
+      <Grid item xs={12} md={9}>
         <Card elevation={2} sx={{ height: "100%" }}>
           <CardHeader
             title={
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  flexWrap: "wrap",
-                }}
-              >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="subtitle1">Follows {target}</Typography>
                 <Chip
                   size="small"
@@ -379,7 +540,7 @@ export default function RouletteTable({
             }}
           />
           <CardContent sx={{ pt: 2 }}>
-            {/* Lose set */}
+            {/* lose set */}
             <Stack
               direction="row"
               spacing={1}
@@ -398,7 +559,163 @@ export default function RouletteTable({
               ))}
             </Stack>
 
-            {/* Followers frequency list */}
+            {/* QUICK FILTERS */}
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ mb: 1.5, alignItems: "center", flexWrap: "wrap" }}
+            >
+              <Typography variant="body2" sx={{ mr: 0.5 }}>
+                Filters:
+              </Typography>
+
+              <Chip
+                size="small"
+                label="0"
+                onClick={() => setIncludeZero((v) => !v)}
+                color={includeZero ? "success" : "default"}
+                sx={{
+                  bgcolor: includeZero ? "#2e7d32" : undefined,
+                  color: "white",
+                }}
+              />
+
+              <Chip
+                size="small"
+                label="Red"
+                onClick={() => setIncludeRed((v) => !v)}
+                sx={{
+                  bgcolor: includeRed ? "#d32f2f" : undefined,
+                  color: includeRed ? "white" : undefined,
+                }}
+              />
+
+              <Chip
+                size="small"
+                label="Black"
+                onClick={() => setIncludeBlack((v) => !v)}
+                sx={{
+                  bgcolor: includeBlack ? "#000" : undefined,
+                  color: includeBlack ? "white" : undefined,
+                }}
+              />
+
+              {/* Reset filters */}
+              <Chip
+                size="small"
+                variant="outlined"
+                label="Reset"
+                onClick={() => {
+                  setIncludeZero(true);
+                  setIncludeRed(true);
+                  setIncludeBlack(true);
+                }}
+                sx={{ ml: 0.5 }}
+              />
+            </Stack>
+
+            {/* RECENT FOLLOWERS (most recent → older) WITH RUN MARKERS */}
+            <Box sx={{ mb: 1.5 }}>
+              <Typography variant="body2" sx={{ mb: 0.5, opacity: 0.8 }}>
+                Recent followers (next) — most → older
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 0.75,
+                }}
+              >
+                {followerGroups.map((g, idx) => (
+                  <Box
+                    key={`${g.value}-${idx}`}
+                    sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                  >
+                    {Array.from({ length: g.count }).map((_, i) => (
+                      <Chip
+                        key={i}
+                        size="small"
+                        label={g.value}
+                        sx={{
+                          bgcolor: getNumberColor(g.value),
+                          color: "white",
+                          fontWeight: 700,
+                        }}
+                      />
+                    ))}
+
+                    {idx < followerGroups.length - 1 && (
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 18,
+                          borderRadius: "3px",
+                          bgcolor: "divider",
+                          mx: 0.25,
+                        }}
+                      />
+                    )}
+                  </Box>
+                ))}
+
+                {followerGroups.length === 0 && (
+                  <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                    No occurrences in this filtered view.
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
+            {/* MICRO PANEL: next after LAST target */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                Next after the last {target}
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                {nextAfterLastTarget.length === 0 && (
+                  <Typography variant="body2" sx={{ opacity: 0.7 }}>
+                    Not available in current range.
+                  </Typography>
+                )}
+
+                {nextAfterLastTarget.map((n, i) => {
+                  const isWin = !bet.lose.has(n);
+                  return (
+                    <Stack key={`${n}-${i}`} alignItems="center" spacing={0.5}>
+                      <Chip
+                        size="small"
+                        label={n}
+                        sx={{
+                          bgcolor: getNumberColor(n),
+                          color: "white",
+                          fontWeight: 700,
+                        }}
+                      />
+                      <Chip
+                        size="small"
+                        label={isWin ? "WIN" : "LOSS"}
+                        color={isWin ? "success" : "error"}
+                        variant="outlined"
+                        sx={{ height: 18 }}
+                      />
+                    </Stack>
+                  );
+                })}
+              </Stack>
+            </Box>
+
+            {/* STATS */}
+            <Divider sx={{ my: 2 }} />
+
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1 }}>
+              <StatChip label="Total" value={followersFiltered.length} />
+              <StatChip label="Wins" value={winsCount} color="success" />
+              <StatChip label="Losses" value={lossesCount} color="error" />
+              <StatChip label="Win %" value={winPct} color="primary" />
+            </Stack>
+
+            {/* FREQUENCY (filtered) */}
             <Table size="small" sx={{ mt: 1, mb: 2 }}>
               <TableHead>
                 <TableRow>
@@ -422,60 +739,14 @@ export default function RouletteTable({
                 {freq.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={2}>
-                      No occurrences in this range.
+                      No occurrences in this filtered view.
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
 
-            {/* Summary chips incl. mini prediction */}
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 2 }}>
-              <Chip size="small" label={`Total: ${followers.length}`} />
-              <Chip size="small" color="success" label={`Wins: ${winsCount}`} />
-              <Chip
-                size="small"
-                color="error"
-                label={`Losses: ${lossesCount}`}
-              />
-              <Chip size="small" color="primary" label={`Win %: ${winPct}`} />
-              <Chip
-                size="small"
-                color={
-                  cur.type === "win"
-                    ? "success"
-                    : cur.type === "loss"
-                    ? "error"
-                    : "default"
-                }
-                label={
-                  cur.type
-                    ? `Current streak: ${cur.type.toUpperCase()} × ${cur.len}`
-                    : "Current streak: —"
-                }
-              />
-              <Chip
-                size="small"
-                color={
-                  prediction?.pick === "win"
-                    ? "success"
-                    : prediction?.pick === "loss"
-                    ? "error"
-                    : "default"
-                }
-                label={
-                  prediction
-                    ? `Likely next: ${prediction.pick.toUpperCase()} (${
-                        prediction.pct
-                      }%)`
-                    : "Likely next: —"
-                }
-              />
-            </Stack>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Side-by-side streak tables, highlighting current streak row & preferred next cell */}
+            {/* STREAK TABLES */}
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 {renderTransTable(
