@@ -209,6 +209,83 @@ export default function RouletteTable({
     }
   };
 
+  // how many to show before expanding
+  const AFTER_LAST_PREVIEW = 20;
+
+  // expand/collapse state
+  const [showAllAfterLast, setShowAllAfterLast] = useState(false);
+
+  // All next results after the *last* occurrence of the current target
+  // and (b) the most-recent occurrence that actually has a following spin.
+  const lastNextAll = useMemo(() => {
+    if (!Array.isArray(slice) || slice.length === 0) return null;
+
+    const toInt = (v) => parseInt(v, 10);
+
+    // strict: last occurrence index (may be the very last item, i.e., no follower)
+    let strictIdx = -1;
+    for (let i = slice.length - 1; i >= 0; i--) {
+      if (toInt(slice[i]) === toInt(target)) {
+        strictIdx = i;
+        break;
+      }
+    }
+
+    // withFollower: last occurrence that actually has a next spin
+    let withFollowerIdx = -1;
+    for (let i = slice.length - 1; i >= 0; i--) {
+      if (toInt(slice[i]) === toInt(target) && i + 1 < slice.length) {
+        withFollowerIdx = i;
+        break;
+      }
+    }
+
+    const buildNext = (idx) =>
+      idx >= 0
+        ? slice
+            .slice(idx + 1)
+            .map((n) => toInt(n))
+            .filter((n) => Number.isFinite(n))
+        : [];
+
+    const strictNext = buildNext(strictIdx);
+    const withFollowerNext = buildNext(withFollowerIdx);
+
+    // choose which set to display:
+    // - prefer strict when it has followers
+    // - otherwise fall back to the last-with-follower
+    const mode =
+      strictIdx >= 0 && strictNext.length > 0
+        ? "strict"
+        : withFollowerIdx >= 0 && withFollowerNext.length > 0
+        ? "withFollower"
+        : "none";
+
+    const chosenIdx =
+      mode === "strict"
+        ? strictIdx
+        : mode === "withFollower"
+        ? withFollowerIdx
+        : -1;
+    const chosenNext =
+      mode === "strict"
+        ? strictNext
+        : mode === "withFollower"
+        ? withFollowerNext
+        : [];
+
+    return {
+      mode, // "strict" | "withFollower" | "none"
+      chosenIdx,
+      next: chosenNext, // the sequence we will render
+      // extras (handy if you ever want a toggle later)
+      strictIdx,
+      strictNext,
+      withFollowerIdx,
+      withFollowerNext,
+    };
+  }, [slice, target]);
+
   // Render helper for streak tables
   const renderTransTable = (
     title,
@@ -276,6 +353,81 @@ export default function RouletteTable({
           </Table>
         </CardContent>
       </Card>
+    );
+  };
+
+  const renderNextAfterLast = () => {
+    if (!lastNextAll || lastNextAll.mode === "none") {
+      // Either target not found in range, or no occurrence has a follower.
+      return (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Not available in current range.
+        </Typography>
+      );
+    }
+
+    const AFTER_LAST_PREVIEW = 20; // unchanged
+    const { mode, next } = lastNextAll;
+
+    if (!next.length) {
+      // shouldn't hit because mode!=="none", but just in case
+      return (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          No spin after the last {target}.
+        </Typography>
+      );
+    }
+
+    const display = showAllAfterLast ? next : next.slice(0, AFTER_LAST_PREVIEW);
+    const hasMore = next.length > AFTER_LAST_PREVIEW;
+
+    return (
+      <Box sx={{ mt: 0.75 }}>
+        {/* little context tag so you know what's shown */}
+        {mode === "withFollower" && (
+          <Chip
+            size="small"
+            variant="outlined"
+            label="Showing last occurrence with a following spin"
+            sx={{ mb: 1 }}
+          />
+        )}
+
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+          {display.map((n, i) => {
+            const isWin = !bet.lose.has(n);
+            return (
+              <Chip
+                key={`${n}-${i}`}
+                label={`${n}`}
+                size="small"
+                color={isWin ? "success" : "error"}
+                sx={{ fontWeight: 600 }}
+              />
+            );
+          })}
+
+          {hasMore && !showAllAfterLast && (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`+${next.length - AFTER_LAST_PREVIEW} more`}
+              onClick={() => setShowAllAfterLast(true)}
+              sx={{ cursor: "pointer" }}
+            />
+          )}
+        </Stack>
+
+        {hasMore && showAllAfterLast && (
+          <Button
+            size="small"
+            onClick={() => setShowAllAfterLast(false)}
+            sx={{ mt: 0.5, textTransform: "none" }}
+          >
+            Show first {AFTER_LAST_PREVIEW}
+          </Button>
+        )}
+      </Box>
     );
   };
 
@@ -492,6 +644,18 @@ export default function RouletteTable({
                 }
               />
             </Stack>
+
+            {/* --- Next after the last <target> --- */}
+
+            <Box sx={{ mt: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, color: "text.secondary", mb: 0.25 }}
+              >
+                Next after the last {target} ({lastNextAll?.next?.length ?? 0})
+              </Typography>
+              {renderNextAfterLast()}
+            </Box>
 
             {/* Frequency table */}
             <Table size="small" sx={{ mt: 1, mb: 2 }}>
