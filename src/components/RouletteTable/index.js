@@ -23,18 +23,18 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 
-// ----- color sets & bet types -----
+// -------------------- constants / helper data --------------------
 const redNumbers = new Set([
   1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36,
 ]);
 const blackNumbers = new Set([
   2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
 ]);
+
 const betTypes = {
   Core28: { lose: new Set([0, 3, 6, 7, 10, 25, 28, 33, 36]) },
 };
 
-// ----- UI helpers -----
 const StatChip = ({ label, value, color = "default" }) => (
   <Chip
     label={`${label}: ${value}`}
@@ -43,24 +43,29 @@ const StatChip = ({ label, value, color = "default" }) => (
     sx={{ fontWeight: 600 }}
   />
 );
+
 const fmtPct = (num, den) => (den ? ((num / den) * 100).toFixed(1) : "—");
 
-// ----- streak helpers -----
+// Build “next outcome after streak” tables from boolean outcomes (true=win, false=loss)
 const buildStreakTransitions = (outcomes) => {
   if (outcomes.length < 2) return { win: {}, loss: {} };
+
+  // length of current streak at each index (ending at i)
   const lenEnd = new Array(outcomes.length).fill(1);
   for (let i = 1; i < outcomes.length; i++) {
     lenEnd[i] = outcomes[i] === outcomes[i - 1] ? lenEnd[i - 1] + 1 : 1;
   }
+
   const agg = { win: new Map(), loss: new Map() };
   const bump = (type, len, nextIsWin) => {
     const m = agg[type];
     if (!m.has(len)) m.set(len, { nextWin: 0, nextLoss: 0, total: 0 });
-    const r = m.get(len);
-    if (nextIsWin) r.nextWin += 1;
-    else r.nextLoss += 1;
-    r.total += 1;
+    const row = m.get(len);
+    if (nextIsWin) row.nextWin += 1;
+    else row.nextLoss += 1;
+    row.total += 1;
   };
+
   for (let i = 0; i < outcomes.length - 1; i++) {
     const cur = outcomes[i];
     const next = outcomes[i + 1];
@@ -68,6 +73,7 @@ const buildStreakTransitions = (outcomes) => {
     if (cur) bump("win", len, next === true);
     else bump("loss", len, next === true);
   }
+
   const toObj = (m) => {
     const obj = {};
     [...m.entries()]
@@ -75,9 +81,11 @@ const buildStreakTransitions = (outcomes) => {
       .forEach(([k, v]) => (obj[k] = v));
     return obj;
   };
+
   return { win: toObj(agg.win), loss: toObj(agg.loss) };
 };
 
+// Compute current streak: type ('win' | 'loss') + length
 const currentStreak = (outcomes) => {
   if (!outcomes.length) return { type: null, len: 0 };
   const last = outcomes[outcomes.length - 1];
@@ -89,7 +97,7 @@ const currentStreak = (outcomes) => {
   return { type: last ? "win" : "loss", len };
 };
 
-// ----- Component -----
+// -------------------- component --------------------
 export default function RouletteTable({
   numbers = [],
   historyRange = 100,
@@ -104,9 +112,13 @@ export default function RouletteTable({
   const [target, setTarget] = useState(18);
   const [historyCollapsed, setHistoryCollapsed] = useState(true);
 
+  // expander for “next after every {target}”
+  const AFTER_EACH_PREVIEW = 30;
+  const [showAllAfterEach, setShowAllAfterEach] = useState(false);
+
   const inputRef = useRef(null);
 
-  // Color function
+  // -------------------- derived data --------------------
   const getNumberColor = (n) => {
     const x = parseInt(n, 10);
     if (x === 0) return "#2e7d32";
@@ -115,12 +127,14 @@ export default function RouletteTable({
     return "#2e7d32";
   };
 
-  // Slice by range
+  // Slice by selected range
   const displayCount = Math.min(localRange, numbers.length);
   const slice = numbers.slice(-displayCount);
+
+  // Current bet rules
   const bet = useMemo(() => betTypes[betTypeKey], [betTypeKey]);
 
-  // Overall
+  // Overall win/loss over the slice
   const overall = useMemo(() => {
     const total = slice.length;
     const losses = slice.filter((n) => bet.lose.has(parseInt(n, 10))).length;
@@ -129,7 +143,7 @@ export default function RouletteTable({
     return { total, wins, losses, pct };
   }, [slice, bet]);
 
-  // Outcomes (win/lose flags by current bet across the slice)
+  // Win/Loss outcomes over the slice for current bet
   const outcomes = useMemo(
     () => slice.map((n) => !bet.lose.has(parseInt(n, 10))),
     [slice, bet]
@@ -138,18 +152,20 @@ export default function RouletteTable({
     () => buildStreakTransitions(outcomes),
     [outcomes]
   );
+
+  // Current streak + rough “next” pick from transitions
   const cur = useMemo(() => currentStreak(outcomes), [outcomes]);
   const prediction = useMemo(() => {
     if (!cur.type || !transitions[cur.type]?.[cur.len]?.total) return null;
     const r = transitions[cur.type][cur.len];
     if (r.nextWin === r.nextLoss)
-      return { pick: "win", pct: fmtPct(r.nextWin, r.total) };
+      return { pick: "win", pct: fmtPct(r.nextWin, r.total) }; // tie -> win
     const pick = r.nextWin > r.nextLoss ? "win" : "loss";
     const pct = fmtPct(Math.max(r.nextWin, r.nextLoss), r.total);
     return { pick, pct };
   }, [cur, transitions]);
 
-  // Followers (recent → older)
+  // Followers of the target (recent → older)
   const followersRecentFirst = useMemo(() => {
     const out = [];
     for (let i = slice.length - 1; i >= 0; i--) {
@@ -158,10 +174,10 @@ export default function RouletteTable({
         if (j < slice.length) out.push(parseInt(slice[j], 10));
       }
     }
-    return out;
+    return out; // already most-recent → older
   }, [slice, target]);
 
-  // Frequency from followers
+  // Frequency for follower counts
   const freq = useMemo(() => {
     const m = new Map();
     for (const v of followersRecentFirst) m.set(v, (m.get(v) || 0) + 1);
@@ -175,7 +191,7 @@ export default function RouletteTable({
     ? ((winsCount / followersRecentFirst.length) * 100).toFixed(1)
     : "—";
 
-  // Recent history chips (collapsed shows 10)
+  // Recent raw history (most recent first) for the top bar
   const recentHistoryFull = useMemo(() => [...slice].reverse(), [slice]);
   const recentHistory = useMemo(
     () =>
@@ -183,7 +199,7 @@ export default function RouletteTable({
     [recentHistoryFull, historyCollapsed]
   );
 
-  // Nav controls for the Number picker
+  // -------------------- controls / effects --------------------
   const handlePrev = () => setTarget((t) => (t - 1 + 37) % 37);
   const handleNext = () => setTarget((t) => (t + 1) % 37);
   const handleTargetChange = (e) => {
@@ -191,7 +207,7 @@ export default function RouletteTable({
     if (!isNaN(val) && val >= 0 && val <= 36) setTarget(val);
   };
 
-  // Auto-choose last submitted number as target
+  // auto-target last entered number
   useEffect(() => {
     if (!numbers.length) return;
     const last = Number(numbers[numbers.length - 1]);
@@ -200,7 +216,7 @@ export default function RouletteTable({
     }
   }, [numbers]);
 
-  // Enter key submits & re-focuses
+  // Enter key submits and re-focuses the input (fast entry)
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -209,7 +225,7 @@ export default function RouletteTable({
     }
   };
 
-  // Render helper for streak tables
+  // -------------------- render helpers --------------------
   const renderTransTable = (
     title,
     rowsObj,
@@ -272,6 +288,13 @@ export default function RouletteTable({
                   </TableRow>
                 );
               })}
+              {lengths.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4}>
+                    Not enough data in this range.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -279,12 +302,70 @@ export default function RouletteTable({
     );
   };
 
+  const renderNextAfterEvery = () => {
+    const total = followersRecentFirst.length;
+
+    if (!total) {
+      return (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          No occurrences of {target} in this range.
+        </Typography>
+      );
+    }
+
+    const display = showAllAfterEach
+      ? followersRecentFirst
+      : followersRecentFirst.slice(0, AFTER_EACH_PREVIEW);
+
+    const hasMore = total > AFTER_EACH_PREVIEW;
+
+    return (
+      <Box sx={{ mt: 0.75 }}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+          {display.map((n, i) => {
+            const isWin = !bet.lose.has(n);
+            return (
+              <Chip
+                key={`${n}-${i}`}
+                label={n}
+                size="small"
+                color={isWin ? "success" : "error"}
+                sx={{ fontWeight: 600 }}
+              />
+            );
+          })}
+
+          {hasMore && !showAllAfterEach && (
+            <Chip
+              size="small"
+              variant="outlined"
+              label={`+${total - AFTER_EACH_PREVIEW} more`}
+              onClick={() => setShowAllAfterEach(true)}
+              sx={{ cursor: "pointer" }}
+            />
+          )}
+        </Stack>
+
+        {hasMore && showAllAfterEach && (
+          <Button
+            size="small"
+            onClick={() => setShowAllAfterEach(false)}
+            sx={{ mt: 0.5, textTransform: "none" }}
+          >
+            Show first {AFTER_EACH_PREVIEW}
+          </Button>
+        )}
+      </Box>
+    );
+  };
+
+  // -------------------- JSX --------------------
   return (
     <Grid container spacing={2}>
       {/* TOP BAR */}
       <Grid item xs={12}>
         <Card elevation={2} sx={{ p: 1.5 }}>
-          {/* First row: input + submit/undo + recent history */}
+          {/* Row 1: input + submit/undo + recent history */}
           <Box
             sx={{
               display: "flex",
@@ -354,7 +435,7 @@ export default function RouletteTable({
 
           <Divider sx={{ my: 1 }} />
 
-          {/* Second row: right cluster */}
+          {/* Row 2: right cluster */}
           <Box
             sx={{
               display: "flex",
@@ -449,15 +530,15 @@ export default function RouletteTable({
               ))}
             </Stack>
 
-            {/* Mini stats row */}
-            <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
+            {/* Mini stats */}
+            <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: "wrap" }}>
               <StatChip label="Total" value={followersRecentFirst.length} />
               <StatChip label="Wins" value={winsCount} color="success" />
               <StatChip label="Losses" value={lossesCount} color="error" />
               <StatChip label="Win %" value={winPct} color="primary" />
             </Stack>
 
-            {/* Streak + prediction */}
+            {/* Current streak + simple next pick */}
             <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap" }}>
               <Chip
                 size="small"
@@ -493,6 +574,18 @@ export default function RouletteTable({
               />
             </Stack>
 
+            {/* Next after EVERY <target> */}
+            <Box sx={{ mt: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, color: "text.secondary", mb: 0.25 }}
+              >
+                Next after every {target} ({followersRecentFirst.length}) — most
+                → older
+              </Typography>
+              {renderNextAfterEvery()}
+            </Box>
+
             {/* Frequency table */}
             <Table size="small" sx={{ mt: 1, mb: 2 }}>
               <TableHead>
@@ -524,7 +617,7 @@ export default function RouletteTable({
               </TableBody>
             </Table>
 
-            {/* Side-by-side streak tables */}
+            {/* Streak tables */}
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 {renderTransTable(
