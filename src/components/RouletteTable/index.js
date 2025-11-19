@@ -108,7 +108,7 @@ export default function RouletteTable({
   onUndo,
 }) {
   const [betTypeKey, setBetTypeKey] = useState("Core28");
-  const [localRange, setLocalRange] = useState(historyRange ?? 100);
+  const [localRange, setLocalRange] = useState(historyRange ?? 18);
   const [target, setTarget] = useState(18);
   const [historyCollapsed, setHistoryCollapsed] = useState(true);
 
@@ -457,7 +457,7 @@ export default function RouletteTable({
               }}
               sx={{ width: 140 }}
             >
-              {[50, 100, 200, 300, 400, 500].map((v) => (
+              {[18, 24, 38, 50, 100, 200, 300, 400, 500].map((v) => (
                 <MenuItem key={v} value={v}>
                   Last {v}
                 </MenuItem>
