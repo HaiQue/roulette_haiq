@@ -103,7 +103,6 @@ export default function TopBar({
               <MenuItem key={v} value={v}>{`Last ${v}`}</MenuItem>
             ))}
           </TextField>
-
           <TextField
             label="Bet Type"
             size="small"
@@ -113,8 +112,8 @@ export default function TopBar({
             sx={{ width: 140 }}
           >
             <MenuItem value="Core28">Core28</MenuItem>
+            <MenuItem value="Core30">Core30</MenuItem>
           </TextField>
-
           <StatChip label="Overall Win %" value={overallPct} color="primary" />
         </Box>
       </Box>

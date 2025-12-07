@@ -31,8 +31,11 @@ const blackNumbers = new Set([
   2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35,
 ]);
 
+const EDGE7 = new Set([0,1,2,3,34,35,36]); // fix later (is this needed conclude logic later)
+
 const betTypes = {
   Core28: { lose: new Set([0, 3, 6, 7, 10, 25, 28, 33, 36]) },
+  Core30: { lose: EDGE7 }
 };
 
 const StatChip = ({ label, value, color = "default" }) => (
