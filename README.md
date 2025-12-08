@@ -12,3 +12,6 @@ Server:
 Client:
 
 1. npm start
+
+Update launch project on root directory:
+npm run dev
