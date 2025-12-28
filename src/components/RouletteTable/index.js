@@ -590,36 +590,47 @@ export default function RouletteTable({
             </Box>
 
             {/* Frequency table */}
-            <Table size="small" sx={{ mt: 1, mb: 2 }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Number</TableCell>
-                  <TableCell align="right">Count</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {freq.map(([n, c]) => (
-                  <TableRow key={n}>
-                    <TableCell>
+            <Box sx={{ mt: 1, mb: 2 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, color: "text.secondary", mb: 0.5 }}
+              >
+                By frequency
+              </Typography>
+
+              {freq.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No occurrences in this range.
+                </Typography>
+              ) : (
+                <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
+                  {freq.map(([n, c]) => (
+                    <Box
+                      key={n}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.5,
+                        mb: 0.5,
+                      }}
+                    >
                       <Chip
                         label={n}
                         size="small"
-                        sx={{ bgcolor: getNumberColor(n), color: "white" }}
+                        sx={{
+                          bgcolor: getNumberColor(n),
+                          color: "white",
+                          fontWeight: 600,
+                        }}
                       />
-                    </TableCell>
-                    <TableCell align="right">{c}</TableCell>
-                  </TableRow>
-                ))}
-                {freq.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={2}>
-                      No occurrences in this range.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-
+                      <Typography variant="caption" color="text.secondary">
+                        ×{c}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Box>
             {/* Streak tables */}
             <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
